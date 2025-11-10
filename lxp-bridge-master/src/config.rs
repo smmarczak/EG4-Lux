@@ -33,8 +33,10 @@ pub struct Inverter {
     #[serde(deserialize_with = "de_serial")]
     pub datalog: Serial,
 
+    pub model: Option<String>,
     pub heartbeats: Option<bool>,
     pub publish_holdings_on_connect: Option<bool>,
+    pub use_serial_in_entities: Option<bool>,
     pub read_timeout: Option<u64>,
 }
 impl Inverter {
@@ -68,6 +70,32 @@ impl Inverter {
 
     pub fn read_timeout(&self) -> u64 {
         self.read_timeout.unwrap_or(900) // 15 minutes
+    }
+
+    pub fn model(&self) -> Option<&str> {
+        self.model.as_deref()
+    }
+
+    pub fn use_serial_in_entities(&self) -> bool {
+        self.use_serial_in_entities.unwrap_or(false)
+    }
+
+    pub fn is_model(&self, model: &str) -> bool {
+        self.model.as_deref() == Some(model)
+    }
+
+    pub fn has_generator(&self) -> bool {
+        // Only 18kPV and similar models have generator input
+        matches!(self.model.as_deref(), Some("18kpv") | Some("18kPV") | Some("EG4-18kPV"))
+    }
+
+    pub fn pv_string_count(&self) -> usize {
+        // Determine number of PV strings based on model
+        match self.model.as_deref() {
+            Some("6000xp") | Some("6kW") => 2,
+            Some("18kpv") | Some("18kPV") => 3,
+            _ => 3, // Default to 3 for unknown models
+        }
     }
 } // }}}
 

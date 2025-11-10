@@ -2,11 +2,19 @@
 
 ## Your Inverter Configuration
 
-**EG4 6000xp Details:**
+**EG4 18kPV:**
 - IP Address: `192.168.5.103`
 - Port: `8000`
 - Serial: `3454660112`
 - Datalog: `BA32402393`
+- Model: `18kpv` (3 PV strings, generator support)
+
+**EG4 6000XP:**
+- IP Address: `192.168.7.44`
+- Port: `8000`
+- Serial: `4053740239`
+- Datalog: `BJ40170817`
+- Model: `6000xp` (2 PV strings, no generator)
 
 ## Quick Start
 
@@ -87,6 +95,26 @@ cargo build --release
 5. Configure with your inverter details
 6. Start the add-on
 
+## New Features 🎉
+
+### ✅ Model Detection & Auto-Filtering
+- **Automatic sensor filtering** based on inverter model
+- Generator sensors only appear on 18kPV (not on 6000xp)
+- 3rd PV string sensors only appear on models with 3 strings
+- No more irrelevant "0.0" sensors cluttering your dashboard!
+
+### ✅ Serial Number in Entity Names
+- Configure `use_serial_in_entities: true` to use serial numbers instead of datalog
+- Makes entity names more recognizable: `lxp_3454660112_soc` vs `lxp_BA32402393_soc`
+
+### ✅ Model Information in HA
+- Inverter model displayed in Home Assistant device info
+- Shows as "EG4 18kPV" or "EG4 6000XP" in the UI
+
+### ✅ Heartbeat Support
+- `heartbeats: true` enables responding to inverter heartbeat requests
+- Keeps connection alive and stable
+
 ## What You'll Get
 
 ### Home Assistant Entities (60+)
@@ -130,6 +158,15 @@ Base: `lxp/BA32402393/` (your datalog serial)
 - `lxp/cmd/BA32402393/set/ac_charge/1` - Enable AC charge
 - `lxp/cmd/BA32402393/set/charge_priority/1` - Enable charge priority
 - `lxp/cmd/BA32402393/set/hold/64/2500` - Set charge power to 2500W
+
+## Sensor Organization
+
+With 60+ entities per inverter, organization is key! See **[SENSOR_ORGANIZATION.md](SENSOR_ORGANIZATION.md)** for:
+- Complete sensor reference by category
+- Home Assistant dashboard examples
+- Template sensors for combined stats
+- Automation examples
+- Tips for managing lots of data
 
 ## 6000xp vs 18kPV Differences
 

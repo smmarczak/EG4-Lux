@@ -1,25 +1,29 @@
 loglevel: info
 
 inverters:
-# EG4 6000xp
+# EG4 18kPV
 - enabled: true
   host: 192.168.5.103
   port: 8000
   serial: 3454660112
   datalog: BA32402393
-  heartbeats: false
+  model: 18kpv
+  heartbeats: true
   publish_holdings_on_connect: false
+  use_serial_in_entities: true
   # Optional: Adjust read timeout (default 900s = 15 minutes)
   # read_timeout: 900
 
-# EG4 18kPV (if you want to add it, uncomment and fill in)
-# - enabled: true
-#   host: 192.168.5.XXX
-#   port: 8000
-#   serial: XXXXXXXXXX
-#   datalog: XXXXXXXXXX
-#   heartbeats: false
-#   publish_holdings_on_connect: false
+# EG4 6000xp
+- enabled: true
+  host: 192.168.7.44
+  port: 8000
+  serial: 4053740239
+  datalog: BJ40170817
+  model: 6000xp
+  heartbeats: true
+  publish_holdings_on_connect: false
+  use_serial_in_entities: true
 
 databases:
 - enabled: false

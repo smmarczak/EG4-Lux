@@ -43,7 +43,8 @@ pub struct Device {
     manufacturer: String,
     name: String,
     identifiers: [String; 1],
-    // model: String, // TODO: provide inverter model
+    #[serde(skip_serializing_if = "Option::is_none")]
+    model: Option<String>,
 }
 
 pub struct Config {
@@ -611,6 +612,8 @@ impl Config {
         ];
 
         sensors
+            .into_iter()
+            .filter(|sensor| self.should_include_sensor(sensor.key))
             .map(|sensor| {
                 // fill in unique_id and value_template (if default) which are derived from key
                 let mut sensor = Entity {
@@ -627,7 +630,7 @@ impl Config {
                     payload: serde_json::to_string(&sensor).unwrap(),
                 }
             })
-            .to_vec()
+            .collect()
     }
 
     pub fn all(&self) -> Result<Vec<mqtt::Message>> {
@@ -780,11 +783,42 @@ impl Config {
         format!("lxp_{}_{}", self.inverter.datalog(), name)
     }
 
+    fn should_include_sensor(&self, key: &str) -> bool {
+        // Filter sensors based on inverter model
+        match key {
+            // Generator sensors - only for 18kPV models
+            "v_gen" | "f_gen" | "p_gen" | "e_gen_day" | "e_gen_all" => {
+                self.inverter.has_generator()
+            }
+            // Third PV string - not present on 6000xp (only 2 strings)
+            "v_pv_3" | "p_pv_3" | "e_pv_day_3" | "e_pv_all_3" => {
+                self.inverter.pv_string_count() >= 3
+            }
+            // All other sensors are included
+            _ => true,
+        }
+    }
+
     fn device(&self) -> Device {
+        let name_id = if self.inverter.use_serial_in_entities() {
+            self.inverter.serial().to_string()
+        } else {
+            self.inverter.datalog().to_string()
+        };
+
+        let model_name = self.inverter.model().map(|m| {
+            match m {
+                "18kpv" | "18kPV" => "EG4 18kPV".to_owned(),
+                "6000xp" => "EG4 6000XP".to_owned(),
+                other => format!("EG4 {}", other),
+            }
+        });
+
         Device {
             identifiers: [format!("lxp_{}", self.inverter.datalog())],
-            manufacturer: "LuxPower".to_owned(),
-            name: format!("lxp_{}", self.inverter.datalog()),
+            manufacturer: "LuxPower/EG4".to_owned(),
+            name: format!("lxp_{}", name_id),
+            model: model_name,
         }
     }
 
