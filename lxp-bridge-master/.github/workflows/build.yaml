@@ -1,0 +1,138 @@
+name: Build
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+jobs:
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            /usr/share/rust
+            ~/.cargo
+            target
+          key: clippy-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Install required cargo
+        run: cargo install clippy-sarif sarif-fmt
+
+      - name: Run rust-clippy
+        run:
+          cargo clippy
+          --all-features
+          --message-format=json | clippy-sarif | tee rust-clippy-results.sarif | sarif-fmt
+        continue-on-error: true
+
+      - name: Upload analysis results to GitHub
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: rust-clippy-results.sarif
+          wait-for-processing: true
+
+  build:
+    name: Build ${{ matrix.build }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+    strategy:
+      matrix:
+        include:
+        - build: linux-amd64
+          os: ubuntu-latest
+          target: x86_64-unknown-linux-gnu
+        - build: linux-arm64
+          os: ubuntu-latest
+          packages: gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
+          openssl: true
+          target: aarch64-unknown-linux-gnu
+          gcc: aarch64-linux-gnu-gcc
+          machine: aarch64
+          arch: aarch64
+        - build: linux-arm-v7
+          os: ubuntu-latest
+          packages: gcc-arm-linux-gnueabihf libc6-dev-armel-cross
+          openssl: true
+          target: armv7-unknown-linux-gnueabihf
+          gcc: arm-linux-gnueabihf-gcc
+          machine: arm
+          arch: arm
+        - build: darwin-amd64
+          os: macos-11
+          target: x86_64-apple-darwin
+        - build: darwin-arm64
+          os: macos-11
+          target: aarch64-apple-darwin
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            /usr/share/rust
+            ~/.cargo
+            ~/openssl-1.1.1l
+            target
+          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install packages
+        if: matrix.packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.packages }}
+
+      - name: Build OpenSSL
+        if: matrix.openssl
+        run: |
+          cd ~
+          wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
+          tar xzf openssl-1.1.1l.tar.gz
+          export MACHINE=${{ matrix.machine }}
+          export ARCH=${{ matrix.arch }}
+          export CC=${{ matrix.gcc }}
+          cd openssl-1.1.1l && ./config shared && make
+          echo OPENSSL_LIB_DIR=~/openssl-1.1.1l >>$GITHUB_ENV
+          echo OPENSSL_INCLUDE_DIR=~/openssl-1.1.1l/include >>$GITHUB_ENV
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+          target: ${{ matrix.target }}
+
+      - name: Build release binary
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
+
+      - name: Rename release binary
+        run: |
+          mv target/${{ matrix.target }}/release/lxp-bridge lxp-bridge.${{ matrix.build }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: lxp-bridge.${{ matrix.build }}
+          path: lxp-bridge.${{ matrix.build }}
